@@ -1,0 +1,14 @@
+[
+  {
+    "truckNumber": "KA-25-AA-1234",
+    "driverName": "Demo Driver",
+    "phone": "9999999999",
+    "truckType": "COVERED",
+    "capacityTons": 10,
+    "currentLocation": {
+      "name": "APMC Amargol"
+    },
+    "status": "AVAILABLE",
+    "operatingCostPerKm": 30
+  }
+]

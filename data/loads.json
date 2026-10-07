@@ -1,0 +1,50 @@
+[
+  {
+    "loadId": "UDUPI-01",
+    "shipperName": "Demo Trader",
+    "pickupLocation": {
+      "name": "APMC Amargol"
+    },
+    "destination": {
+      "name": "Udupi"
+    },
+    "weightTons": 8.5,
+    "cargoType": "Agricultural Produce",
+    "requiredTruckType": "COVERED",
+    "freightAmount": 9000,
+    "distanceKm": 315,
+    "status": "AVAILABLE"
+  },
+  {
+    "loadId": "REEFER-01",
+    "shipperName": "Demo Cold Chain",
+    "pickupLocation": {
+      "name": "APMC Amargol"
+    },
+    "destination": {
+      "name": "Mangalore"
+    },
+    "weightTons": 5,
+    "cargoType": "Perishables",
+    "requiredTruckType": "REEFER",
+    "freightAmount": 7000,
+    "distanceKm": 300,
+    "status": "AVAILABLE"
+  },
+  {
+    "loadId": "OVERWEIGHT-01",
+    "shipperName": "Demo Trader",
+    "pickupLocation": {
+      "name": "APMC Amargol"
+    },
+    "destination": {
+      "name": "Hubballi"
+    },
+    "weightTons": 14,
+    "cargoType": "Grain",
+    "requiredTruckType": "COVERED",
+    "freightAmount": 12000,
+    "distanceKm": 350,
+    "status": "AVAILABLE"
+  }
+]
