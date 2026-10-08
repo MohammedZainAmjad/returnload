@@ -6,8 +6,8 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:1.5b';
+const OLLAMA_URL = 'http://127.0.0.1:11434';
+const OLLAMA_MODEL = 'qwen2.5:0.5b';
 
 app.use(cors());
 app.use(express.json());
@@ -25,7 +25,9 @@ function getMatches(truckNumber) {
   const trucks = readJSON('trucks.json');
   const loads = readJSON('loads.json');
 
-  const truck = trucks.find(t => t.truckNumber === truckNumber);
+  const truck = trucks.find(
+    t => t.truckNumber === truckNumber
+  );
 
   if (!truck) return null;
 
@@ -85,11 +87,6 @@ app.get('/api/matches/:truckNumber', (req, res) => {
   res.json(result);
 });
 
-/*
-  AI CHAT
-  The deterministic backend supplies the actual logistics data.
-  Ollama only interprets that data and explains it to the driver.
-*/
 app.post('/api/chat', async (req, res) => {
   try {
     const { message, truckNumber } = req.body;
@@ -116,25 +113,25 @@ app.post('/api/chat', async (req, res) => {
     const systemPrompt = `
 You are ReturnLoad AI, a logistics assistant for truck drivers at APMC Amargol.
 
-Your job is to answer questions using ONLY the logistics data supplied below.
+Answer ONLY using the logistics data supplied below.
 
-IMPORTANT RULES:
-1. Never invent a load, price, distance, capacity, profit, or route.
-2. Never make up missing information.
-3. Do not say you need to contact ReturnLoad if the supplied data answers the question.
-4. For earnings, use the supplied estimatedMargin exactly.
-5. The backend has already calculated operating cost and margin. Do NOT recalculate them.
-6. Explain compatibility using truck type and capacity.
-7. If a load is not in compatibleLoads, do not claim that it is compatible.
-8. Keep answers short and practical for a truck driver.
-9. Currency is Indian Rupees.
-10. You are an assistant inside the ReturnLoad logistics application.
+RULES:
+- Never invent a load, price, distance, route, capacity or earnings.
+- Never invent information that is not supplied.
+- The backend has already calculated operating cost and estimated margin.
+- Use the supplied estimatedMargin exactly.
+- Do not recalculate economics.
+- Explain truck/load compatibility using capacity and truck type.
+- If there is no compatible load for the requested destination, say so.
+- Keep responses short, clear and practical.
+- Use Indian Rupees.
+- You are inside the ReturnLoad application.
 
-CURRENT LOGISTICS DATA:
+LOGISTICS DATA:
 ${JSON.stringify(context, null, 2)}
 `;
 
-    const ollamaResponse = await fetch(`${OLLAMA_URL}/api/chat`, {
+    const response = await fetch(`${OLLAMA_URL}/api/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -158,18 +155,16 @@ ${JSON.stringify(context, null, 2)}
       })
     });
 
-    if (!ollamaResponse.ok) {
-      throw new Error(
-        `Ollama returned HTTP ${ollamaResponse.status}`
-      );
+    if (!response.ok) {
+      throw new Error(`Ollama HTTP ${response.status}`);
     }
 
-    const data = await ollamaResponse.json();
+    const data = await response.json();
 
     res.json({
-      answer: data.message?.content ||
+      answer:
+        data.message?.content ||
         'I could not generate an answer.',
-      source: 'ReturnLoad AI',
       model: OLLAMA_MODEL
     });
 
@@ -177,8 +172,7 @@ ${JSON.stringify(context, null, 2)}
     console.error('AI chat error:', error.message);
 
     res.status(503).json({
-      error: 'AI assistant unavailable',
-      details: error.message
+      error: 'AI assistant unavailable'
     });
   }
 });
