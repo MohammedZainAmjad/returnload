@@ -105,29 +105,140 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
+    const text = message.toLowerCase();
+    const allLoads = readJSON('loads.json');
+
+    // Find a verified compatible load mentioned by destination.
+    const selectedLoad = result.matches.find(load =>
+      text.includes(load.destination.name.toLowerCase())
+    );
+
+    // Detect a requested destination even when no compatible load exists.
+    const requestedDestination = allLoads.find(load =>
+      text.includes(load.destination.name.toLowerCase())
+    );
+
+    // Reject unknown destinations deterministically.
+    const destinationMatch =
+      text.match(/\b(?:to|towards|for)\s+([a-z][a-z ]+)/i);
+
+    if (
+      destinationMatch &&
+      !requestedDestination &&
+      (
+        text.includes('load') ||
+        text.includes('loads') ||
+        text.includes('compatible')
+      )
+    ) {
+      const destination =
+        destinationMatch[1].trim();
+
+      return res.json({
+        answer:
+          'No verified return load to ' +
+          destination.charAt(0).toUpperCase() +
+          destination.slice(1) +
+          ' is currently available in ReturnLoad.',
+        model: 'deterministic-logistics-engine'
+      });
+    }
+
+    if (
+      requestedDestination &&
+      !selectedLoad &&
+      (
+        text.includes('load') ||
+        text.includes('towards') ||
+        text.includes('to ') ||
+        text.includes('compatible')
+      )
+    ) {
+      return res.json({
+        answer:
+          'I could not find a compatible return load to ' +
+          requestedDestination.destination.name +
+          ' for your ' +
+          result.truck.capacityTons +
+          '-ton ' +
+          result.truck.truckType.toLowerCase() +
+          ' truck.',
+        model: 'deterministic-logistics-engine'
+      });
+    }
+
+    // Deterministic answers for factual logistics questions.
+    if (
+      selectedLoad &&
+      (
+        text.includes('find') ||
+        text.includes('load') ||
+        text.includes('compatible') ||
+        text.includes('how much') ||
+        text.includes('make') ||
+        text.includes('earn') ||
+        text.includes('profit') ||
+        text.includes('margin') ||
+        text.includes('cheaper')
+      )
+    ) {
+      const margin = selectedLoad.economics.estimatedMargin;
+
+      let financialText;
+
+      if (margin < 0) {
+        financialText =
+          'Estimated loss is ₹' + Math.abs(margin).toLocaleString() + '.';
+      } else {
+        financialText =
+          'Estimated profit is ₹' + margin.toLocaleString() + '.';
+      }
+
+      return res.json({
+        answer:
+          'I found a compatible ' +
+          selectedLoad.weightTons +
+          '-ton ' +
+          selectedLoad.requiredTruckType.toLowerCase() +
+          ' load from ' +
+          selectedLoad.pickupLocation.name +
+          ' to ' +
+          selectedLoad.destination.name +
+          '. Freight is ₹' +
+          selectedLoad.freightAmount.toLocaleString() +
+          '. Operating cost is ₹' +
+          selectedLoad.economics.operatingCost.toLocaleString() +
+          '. ' +
+          financialText,
+        model: 'deterministic-logistics-engine'
+      });
+    }
+
+    // For explanation/conversational questions, let Qwen explain
+    // only the verified backend data.
     const context = {
       truck: result.truck,
       compatibleLoads: result.matches
     };
 
     const systemPrompt = `
-You are ReturnLoad AI, a logistics assistant for truck drivers at APMC Amargol.
+You are ReturnLoad AI, a logistics assistant inside a truck-load matching application.
 
-Answer ONLY using the logistics data supplied below.
+The backend has already made all logistics decisions.
 
 RULES:
-- Never invent a load, price, distance, route, capacity or earnings.
-- Never invent information that is not supplied.
-- The backend has already calculated operating cost and estimated margin.
-- Use the supplied estimatedMargin exactly.
-- Do not recalculate economics.
-- Explain truck/load compatibility using capacity and truck type.
-- If there is no compatible load for the requested destination, say so.
-- Keep responses short, clear and practical.
-- Use Indian Rupees.
-- You are inside the ReturnLoad application.
+- Use ONLY the supplied logistics data.
+- Never invent or change a load ID, destination, route, weight, price or distance.
+- Never select a different load.
+- Never recalculate operating cost or margin.
+- A negative estimatedMargin means an estimated LOSS.
+- A positive estimatedMargin means an estimated PROFIT.
+- Explain why a load is compatible using truck capacity and truck type.
+- Keep the answer short and practical.
+- Do not output JSON.
+- Do not mention being an AI model.
 
-LOGISTICS DATA:
+VERIFIED LOGISTICS DATA:
 ${JSON.stringify(context, null, 2)}
 `;
 

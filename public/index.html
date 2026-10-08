@@ -194,50 +194,56 @@ function addMessage(text,type){
 
 async function sendMessage(){
 
-  const input=document.getElementById('chatInput');
-  const text=input.value.trim();
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
 
-  if(!text)return;
+  if(!text) return;
 
-  addMessage(text,'user');
-  input.value='';
+  addMessage(text, 'user');
+  input.value = '';
 
   addMessage(
-    'I’m checking the available return loads for your truck...',
+    'ReturnLoad AI is thinking...',
     'bot'
   );
-
-  const result =
-    await (await fetch(
-      '/api/matches/' +
-      encodeURIComponent(truck.truckNumber)
-    )).json();
 
   const last =
     document.getElementById('chatBody').lastElementChild;
 
-  if(result.matches.length){
+  try {
 
-    const load=result.matches[0];
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: text,
+        truckNumber: truck.truckNumber
+      })
+    });
+
+    const result = await response.json();
+
+    if(!response.ok){
+      last.textContent =
+        'ReturnLoad AI is temporarily unavailable.';
+      return;
+    }
 
     last.textContent =
-      `I found a compatible ${load.weightTons}-ton ` +
-      `${load.requiredTruckType.toLowerCase()} load from ` +
-      `${load.pickupLocation.name} to ` +
-      `${load.destination.name}. ` +
-      `Freight is ₹${load.freightAmount.toLocaleString()} ` +
-      `and estimated operating cost is ₹${load.economics.operatingCost.toLocaleString()}. ` +
-      `Estimated margin is ₹${load.economics.estimatedMargin.toLocaleString()}.`;
+      result.answer || 'I could not generate an answer.';
 
-  }else{
+  } catch(error) {
+
+    console.error('AI chat error:', error);
 
     last.textContent =
-      'I could not find a compatible return load right now.';
+      'Unable to connect to ReturnLoad AI.';
   }
 }
 
 loadDashboard();
-
 </script>
 
 </body>
