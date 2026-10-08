@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ReturnLoad AI</title>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:Arial,sans-serif}
+body{background:#17191c;color:#fff}
+header{background:#111827;padding:18px 35px;display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:24px;font-weight:700}.logo span{color:#16a34a}
+.status{background:#14532d;padding:7px 14px;border-radius:20px;font-size:13px}
+main{max-width:1200px;margin:30px auto;padding:0 20px}
+.hero,.load-card{background:#111;border-radius:16px;padding:28px;margin-bottom:22px}
+.hero h1{font-size:30px;margin-bottom:8px}.hero p{color:#94a3b8}
+.truck-card{background:#111827;border-radius:16px;padding:25px;margin-bottom:25px}
+.truck-grid,.load-details{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:20px}
+.stat small,.detail small{display:block;color:#94a3b8;margin-bottom:6px}
+.stat strong{font-size:18px}
+.section-title{margin-bottom:15px}
+.load-card{border-left:5px solid #16a34a}
+.load-top{display:flex;justify-content:space-between}
+.route{font-size:20px;font-weight:bold}
+.badge{background:#14532d;color:#86efac;padding:6px 10px;border-radius:20px;font-size:12px}
+.detail{background:#1f2125;padding:13px;border-radius:10px}
+.profit{color:#ef4444}
+.chat-button{position:fixed;right:25px;bottom:25px;width:62px;height:62px;border-radius:50%;border:0;background:#16a34a;color:white;font-size:25px;cursor:pointer;box-shadow:0 8px 25px #0008}
+.chat{display:none;position:fixed;right:25px;bottom:100px;width:360px;height:500px;background:#111827;border-radius:18px;box-shadow:0 10px 40px #0009;overflow:hidden}
+.chat-head{padding:18px;background:#14532d;font-weight:bold}
+.chat-body{height:375px;padding:15px;overflow-y:auto}
+.msg{padding:10px 13px;border-radius:12px;margin-bottom:10px;max-width:85%;line-height:1.4}
+.bot{background:#252a30}.user{background:#166534;margin-left:auto}
+.chat-input{display:flex;padding:10px;background:#0b0f14}
+.chat-input input{flex:1;background:#252a30;border:0;color:white;padding:12px;border-radius:8px;outline:none}
+.chat-input button{margin-left:8px;border:0;background:#16a34a;color:white;border-radius:8px;padding:0 15px}
+@media(max-width:700px){.truck-grid,.load-details{grid-template-columns:1fr 1fr}.chat{right:10px;width:calc(100% - 20px)}}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">Return<span>Load</span> AI</div>
+  <div class="status">● System Online</div>
+</header>
+
+<main>
+
+<section class="hero">
+<h1>Turn the return trip into revenue.</h1>
+<p>Find compatible outbound loads for trucks arriving at APMC Amargol.</p>
+</section>
+
+<section id="truck"></section>
+
+<h2 class="section-title">Recommended Return Loads</h2>
+<section id="loads">Loading...</section>
+
+</main>
+
+<button class="chat-button" onclick="toggleChat()">💬</button>
+
+<div class="chat" id="chat">
+
+  <div class="chat-head">
+    ReturnLoad AI
+    <div style="font-size:12px;font-weight:normal;margin-top:4px">
+      Your logistics assistant
+    </div>
+  </div>
+
+  <div class="chat-body" id="chatBody">
+    <div class="msg bot">
+      Hello! I'm ReturnLoad AI. Ask me about compatible return loads, freight, or your estimated earnings.
+    </div>
+  </div>
+
+  <div class="chat-input">
+    <input id="chatInput"
+           placeholder="e.g. Find me a load to Udupi"
+           onkeydown="if(event.key==='Enter')sendMessage()">
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+</div>
+
+<script>
+
+let truck;
+
+async function loadDashboard(){
+
+  const trucks =
+    await (await fetch('/api/trucks')).json();
+
+  truck = trucks[0];
+
+  document.getElementById('truck').innerHTML = `
+    <div class="truck-card">
+      <h2>${truck.truckNumber}</h2>
+      <p>${truck.currentLocation.name} → Available for return load</p>
+
+      <div class="truck-grid">
+        <div class="stat">
+          <small>Truck Type</small>
+          <strong>${truck.truckType}</strong>
+        </div>
+
+        <div class="stat">
+          <small>Capacity</small>
+          <strong>${truck.capacityTons} Tons</strong>
+        </div>
+
+        <div class="stat">
+          <small>Operating Cost</small>
+          <strong>₹${truck.operatingCostPerKm}/km</strong>
+        </div>
+
+        <div class="stat">
+          <small>Status</small>
+          <strong>${truck.status}</strong>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const result =
+    await (await fetch(
+      '/api/matches/' +
+      encodeURIComponent(truck.truckNumber)
+    )).json();
+
+  document.getElementById('loads').innerHTML =
+    result.matches.map(load => `
+      <div class="load-card">
+
+        <div class="load-top">
+          <div class="route">
+            ${load.pickupLocation.name}
+            → ${load.destination.name}
+          </div>
+
+          <div class="badge">COMPATIBLE</div>
+        </div>
+
+        <div class="load-details">
+
+          <div class="detail">
+            <small>Cargo</small>
+            <strong>${load.cargoType}</strong>
+          </div>
+
+          <div class="detail">
+            <small>Weight</small>
+            <strong>${load.weightTons} Tons</strong>
+          </div>
+
+          <div class="detail">
+            <small>Freight</small>
+            <strong>₹${load.freightAmount.toLocaleString()}</strong>
+          </div>
+
+          <div class="detail">
+            <small>Estimated Margin</small>
+            <strong class="profit">
+              ₹${load.economics.estimatedMargin.toLocaleString()}
+            </strong>
+          </div>
+
+        </div>
+      </div>
+    `).join('');
+}
+
+function toggleChat(){
+  const chat=document.getElementById('chat');
+  chat.style.display =
+    chat.style.display === 'block' ? 'none' : 'block';
+}
+
+function addMessage(text,type){
+
+  const body=document.getElementById('chatBody');
+
+  const div=document.createElement('div');
+
+  div.className='msg '+type;
+  div.textContent=text;
+
+  body.appendChild(div);
+  body.scrollTop=body.scrollHeight;
+}
+
+async function sendMessage(){
+
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+
+  if(!text) return;
+
+  addMessage(text, 'user');
+  input.value = '';
+
+  addMessage(
+    'ReturnLoad AI is thinking...',
+    'bot'
+  );
+
+  const last =
+    document.getElementById('chatBody').lastElementChild;
+
+  try {
+
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: text,
+        truckNumber: truck.truckNumber
+      })
+    });
+
+    const result = await response.json();
+
+    if(!response.ok){
+      last.textContent =
+        'ReturnLoad AI is temporarily unavailable.';
+      return;
+    }
+
+    last.textContent =
+      result.answer || 'I could not generate an answer.';
+
+  } catch(error) {
+
+    console.error('AI chat error:', error);
+
+    last.textContent =
+      'Unable to connect to ReturnLoad AI.';
+  }
+}
+
+loadDashboard();
+</script>
+
+</body>
+</html>
